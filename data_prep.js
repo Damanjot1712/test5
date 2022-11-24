@@ -1,15 +1,41 @@
-var fs = require("fs");
-var students=[];
-exports.prep = ()=>{
-   // console.log("Testing");
-   return new Promise((resolve, reject)=>{
-        fs.readFile("./students.json", (err, data)=>{
-            if (err) {reject("unable to read file.");}
-            students = JSON.parse(data);
-           // console.log(students);
-            resolve("File read success.");
-        }); 
+const Sequelize = require('sequelize');
+var sequelize = new Sequelize('d5e3kmgj3fosms', 'wdnkhdurgsgopd', 'a0d261ee90c510d7f88f26c57950cf5b99b60f1d2daaeb36a2d3d851c8a181fb', {
+    host: 'ec2-52-203-118-49.compute-1.amazonaws.com',
+    dialect: 'postgres',
+    port: 5432,
+    dialectOptions: {
+    ssl: true
+    }
    });
+
+   const Student = sequelize.define('student', {
+    studId: {
+        type:Sequelize.INTEGER,
+        primaryKey:true,
+        autoIncrement:true
+    },
+    name:Sequelize.STRING,
+    program:Sequelize.STRING,
+    gpa:Sequelize.FLOAT,
+
+
+   });
+
+   exports.initialize = () => {
+    return new Promise((resolve,reject) => {
+        sequelize.sync()
+        .then(resolve('database synced'))
+        .catch(reject('unable to sync the database'));
+    })
+};
+
+
+exports.prep = ()=>{
+    return new Promise((resolve,reject) => {
+        sequelize.sync()
+        .then(resolve(Student.findAll()))
+        .catch(reject('no results returned'));
+    })
 };
 
 exports.bsd = ()=>{
@@ -21,28 +47,17 @@ exports.bsd = ()=>{
 
 
 exports.cpa = ()=>{
-    return new Promise((resolve, reject)=>{
-       let results = students.filter(student => student.program == "CPA");
-       (results.length == 0)? reject("No CPA students."):resolve(results);
-    });
-}
-exports.highGPA = ()=>{
-    return new Promise((resolve, reject)=>{
-        let high = 0;
-        let highStudent;
-        
-        for (let i=0; i<students.length; i++)
-        {
-            //console.log(students[i].gpa, high);
-            if (students[i].gpa > high)
-            {
-                high = students[i].gpa;
-                highStudent = students[i];
+    return new Promise((resolve, reject) => {
+        Student.findAll({
+            where: {
+                program: "CPA"
             }
-        }
-        (highStudent) ? resolve(highStudent): reject("Failed finding student with highest GPA");
-    }); 
-};
+        }).then(data => {
+            resolve(data)
+        }).catch(err => reject("no results returned"))
+    });
+
+}
 
 exports.lowGPA = ()=>{
     return new Promise((resolve, reject)=>{
@@ -70,12 +85,38 @@ exports.allStudents =()=>{
 }
 
 exports.addStudent= (stud)=>{
-    return new Promise((resolve, reject)=>{
-        stud.studId = students.length+1;
-        students.push(stud);
-        resolve();
+    return new Promise((resolve,reject) => {
+        for (var i in stud) {
+            if (stud[i] == "") { stud[i] = null; }
+        }
+    
+        Student.create(stud)
+        .then(resolve(Student.findAll()))
+        .catch(reject('unable to add Student'))
+    })
+};
+
+
+
+exports.highGPA = () => {
+
+    return new Promise((resolve, reject) => {
+        let high_GPA = 0;
+        let hStudent;
+        Student.findAll().then(data => {
+            for (let i = 0; i < data.length; i++) {
+                if (data[i].gpa > high_GPA) {
+                    high_GPA = data[i].gpa;
+                    Student = data[i];
+                }
+            }
+            (hStudent) ? resolve(hStudent) : reject("no results returned");
+        }).catch(err => {
+            reject("no results returned")
+        })
     });
-}
+
+};
 
 exports.getStudent = (studId)=>{
     return new Promise((resolve, reject)=>{
